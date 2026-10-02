@@ -1,0 +1,7 @@
+# ============================================================================
+# dbt packages. dbt_utils provides battle-tested macros we use for
+# surrogate keys and generic test ergonomics. Install with: dbt deps
+# ============================================================================
+packages:
+  - package: dbt-labs/dbt_utils
+    version: ["1.2.0"]   # pinned: reproducible builds; bump deliberately

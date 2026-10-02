@@ -1,0 +1,37 @@
+# ============================================================================
+# sources.yml — declare the raw landing zone as dbt SOURCES.
+#
+# WHY SOURCES MATTER (interview answer):
+#   "Sources are dbt's contract with the outside world: they name the raw
+#    tables, declare freshness expectations, and let every staging model
+#    reference {{ source('raw', 'orders') }} instead of hard-coding schema
+#    names. Lineage in the docs starts at the source, and source freshness
+#    checks tell you when upstream delivery breaks."
+#
+# loaded_at_field enables `dbt source freshness` — the DAG could run it
+# daily to prove the raw layer is being fed.
+# ============================================================================
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Untouched landing zone. One JSONB payload per delivered row. Created
+      and loaded by data_generator/load_raw.py. NEVER clean data here.
+    schema: raw
+    loaded_at_field: loaded_at
+
+    tables:
+      - name: customers
+        description: Customer master data; contains duplicates and missing fields.
+      - name: products
+        description: Product catalog; contains duplicate ids and price outliers.
+      - name: orders
+        description: >
+          Orders with nested line items (JSON string), mixed date formats,
+          test orders, and negative quantities.
+      - name: events
+        description: >
+          Clickstream events (page_view / add_to_cart / checkout / purchase)
+          with inconsistent event-type spellings and malformed lines already
+          dead-lettered by the loader.

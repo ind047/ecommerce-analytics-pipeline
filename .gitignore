@@ -1,0 +1,29 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# ---- Local data (regenerated on every run; never commit raw data) ----
+data/raw/
+!data/raw/.gitkeep
+
+# ---- dbt ----
+dbt/ecommerce_dbt/target/
+dbt/ecommerce_dbt/dbt_packages/
+dbt/ecommerce_dbt/logs/
+
+# ---- Airflow local state ----
+airflow/logs/
+airflow/airflow.db
+
+# ---- Environment / secrets ----
+.env
+*.pem
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

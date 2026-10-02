@@ -1,0 +1,93 @@
+# ============================================================================
+# staging.yml — tests on the staging layer
+#
+# INTERVIEW NARRATIVE: "Generic tests (unique / not_null / relationships /
+# accepted_values) come free with dbt; I treat them as the CONTRACT each
+# model makes with its consumers. `dbt build` runs models AND tests, so a
+# contract violation fails the pipeline loudly instead of corrupting a
+# dashboard quietly. store_failures=true means violations land in a table
+# I can inspect."
+# ============================================================================
+version: 2
+
+models:
+  - name: stg_customers
+    description: Cleaned, deduplicated customer master data.
+    columns:
+      - name: customer_id
+        description: Primary key — natural key from the source system.
+        tests:
+          - unique          # dedup actually worked
+          - not_null
+      - name: email
+        description: Lowercased email; may be NULL (missing at source).
+      - name: country
+        tests:
+          - accepted_values:
+              values: ['DE', 'AT', 'CH', 'NL', 'FR']
+      - name: signup_at
+        tests:
+          - not_null        # rows without a parseable signup date were rejected
+
+  - name: stg_products
+    description: Cleaned product catalog; one row per product.
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: category
+        description: Never NULL — missing values became 'Unknown' explicitly.
+        tests: [not_null]
+      - name: unit_price
+        description: Zero-price outliers nulled; NULL means "price unknown".
+
+  - name: stg_orders
+    description: >
+      Order lines exploded from nested JSON. GRAIN one row per
+      (order_id, line_no). Test orders and defective lines are flagged,
+      not dropped.
+    columns:
+      - name: order_id
+        tests: [not_null]
+      # Composite uniqueness (order_id + line_no) is enforced by the
+      # singular test tests/order_lines_unique.sql — generic unique tests
+      # a single column, so multi-column grain needs a custom test.
+      - name: customer_id
+        tests:
+          - relationships:             # referential integrity: no orphan orders
+              to: ref('stg_customers')
+              field: customer_id
+      - name: product_id
+        tests:
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['completed', 'cancelled', 'returned', 'test']
+      - name: ordered_at
+        tests: [not_null]
+
+  - name: stg_events
+    description: >
+      Normalized clickstream. Malformed lines were dead-lettered by the
+      loader; events without timestamps were rejected here.
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: event_type
+        tests:
+          - accepted_values:
+              values: ['page_view', 'add_to_cart', 'checkout', 'purchase']
+              config:
+                # Non-canonical spellings are kept in the model with
+                # is_canonical = false rather than dropped; this test then
+                # enforces that the canonical set is what it claims to be.
+                severity: warn
+      - name: event_at
+        tests: [not_null]

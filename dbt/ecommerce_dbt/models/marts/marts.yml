@@ -1,0 +1,115 @@
+# ============================================================================
+# marts.yml — tests + documentation on the star schema and business marts.
+#
+# These tests protect the CONTRACT WITH POWER BI: if a join produced orphans
+# or a mart breaks its grain, the build fails BEFORE the dashboard notices.
+# ============================================================================
+version: 2
+
+models:
+  # --------------------------- DIMENSIONS ---------------------------------
+  - name: dim_customers
+    description: >
+      Customer dimension, SCD Type 1. Grain one row per customer.
+      Surrogate key is the join column for all facts.
+    columns:
+      - name: customer_sk
+        tests: [unique, not_null]
+      - name: customer_id
+        description: Natural key, kept for traceability.
+        tests: [unique, not_null]
+
+  - name: dim_products
+    description: Product dimension, SCD Type 1. Grain one row per product.
+    columns:
+      - name: product_sk
+        tests: [unique, not_null]
+      - name: product_id
+        tests: [unique, not_null]
+
+  # ----------------------------- FACTS ------------------------------------
+  - name: fct_orders
+    description: >
+      Transactional fact, one row per order LINE. Measures quantity,
+      line_total, revenue. Test orders and defective lines excluded here
+      (business decision made at the fact, flags computed in staging).
+    columns:
+      - name: customer_sk
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_sk
+      - name: product_sk
+        tests:
+          - relationships:
+              to: ref('dim_products')
+              field: product_sk
+      - name: revenue
+        description: >
+          THE revenue definition: completed, valid lines only. Defined once
+          here; every KPI consumes this column.
+      - name: ordered_at
+        tests: [not_null]
+
+  - name: fct_events
+    description: Transactional fact, one row per canonical clickstream event.
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: customer_sk
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_sk
+
+  - name: fct_funnel
+    description: >
+      Accumulating snapshot, one row per session with one timestamp column
+      per funnel milestone. Powers funnel conversion and session timing.
+    columns:
+      - name: session_sk
+        tests: [unique, not_null]
+      - name: session_id
+        tests: [unique, not_null]
+
+  # -------------------------- BUSINESS MARTS -------------------------------
+  - name: mart_kpi_daily
+    description: >
+      Grain one row per day with orders, customers, units, revenue, AOV and
+      week-over-week change. Bound directly by Power BI KPI visuals.
+    columns:
+      - name: order_date
+        tests: [unique, not_null]
+      - name: revenue
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+
+  - name: mart_cohort_retention
+    description: >
+      Grain one row per (cohort_month, months_since_first). retention_rate
+      is share of the cohort still active N months after acquisition.
+    tests:
+      # Cohort integrity: month 0 must equal 100% for every cohort —
+      # everyone is "retained" in their acquisition month.
+      - dbt_utils.expression_is_true:
+          expression: "months_since_first > 0 or retention_rate = 1"
+    columns:
+      - name: retention_rate
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0 and <= 1"
+
+  - name: mart_funnel_conversion
+    description: >
+      Grain one row per funnel stage. step_conversion_rate = stage / prior
+      stage; overall_conversion_rate = stage / sessions.
+    columns:
+      - name: stage_name
+        tests:
+          - accepted_values:
+              values: ['page_view', 'add_to_cart', 'checkout', 'purchase']
+      - name: step_conversion_rate
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0 and <= 1"

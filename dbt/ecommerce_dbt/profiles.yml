@@ -1,0 +1,28 @@
+# ============================================================================
+# dbt connection profile.
+# NOTE: this file intentionally lives INSIDE the project and is .gitignore-
+# friendly for real secrets. For the portfolio the password matches the local
+# docker-compose Postgres; swap for env-var refs ({{ env_var(...) }}) when
+# this goes anywhere near a real environment.
+#
+# Interview answer: "profiles.yml maps an environment (target) to a database
+# connection — dev vs prod targets let dbt build into different schemas from
+# the same code."
+# ============================================================================
+ecommerce_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      method: password
+      # Inside docker-compose, host resolves to the `postgres` service name.
+      # On bare-metal Windows (no docker), switch host to localhost.
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | as_number }}"
+      user: "{{ env_var('POSTGRES_USER', 'analytics') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'analytics') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'shop') }}"
+      schema: dbt                       # scratch schema for dbt internals
+      threads: 4                        # parallel model builds
+      keepalives_idle: 0
+      search_path: public

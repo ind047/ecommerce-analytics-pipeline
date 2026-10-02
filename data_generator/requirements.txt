@@ -1,0 +1,5 @@
+# Versions pinned so the scaffold behaves identically on any machine.
+# faker        -> generates realistic names, emails, addresses
+# psycopg[binary] -> loader that COPYs raw files into PostgreSQL
+faker==25.8.0
+psycopg[binary]==3.1.19

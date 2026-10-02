@@ -1,0 +1,102 @@
+# ============================================================================
+# docker-compose.yml — one command to stand up the whole stack:
+#   postgres : the warehouse (raw landing zone + dbt marts)
+#   airflow  : webserver + scheduler (LocalExecutor, Postgres backend)
+#
+# Interview talking point: "everything runs in containers so the project is
+# reproducible on any machine — compose up, and the pipeline is live."
+# ============================================================================
+x-airflow-common: &airflow-common
+  build:
+    context: ./airflow
+  environment: &airflow-env
+    # --- Core Airflow config (LocalExecutor = one node, tasks as processes) ---
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"          # keep UI clean; only our DAG
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: Europe/Berlin
+    # --- Metadata DB: point Airflow at the same Postgres service ---
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-analytics}:${POSTGRES_PASSWORD:-analytics}@postgres:5432/${POSTGRES_DB:-shop}
+    # --- Where dbt finds its profile target inside the container ---
+    DBT_PROFILES_DIR: /opt/dbt
+    # --- Warehouse connection for the dbt task (host = service name) ---
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    POSTGRES_DB: ${POSTGRES_DB:-shop}
+    POSTGRES_USER: ${POSTGRES_USER:-analytics}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-analytics}
+    # --- Admin account created by the one-time init in `command` below ---
+    AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
+    AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+    AIRFLOW_ADMIN_FIRSTNAME: ${AIRFLOW_ADMIN_FIRSTNAME:-Admin}
+    AIRFLOW_ADMIN_LASTNAME: ${AIRFLOW_ADMIN_LASTNAME:-User}
+    AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL:-admin@example.com}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags          # our DAG file
+    - ./data_generator:/opt/data_generator      # generator + loader scripts
+    - ./data:/opt/data                          # shared raw data folder
+    - ./dbt:/opt/dbt                            # dbt project (project + profiles)
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks:
+    - pipeline
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL 16: single warehouse for BOTH Airflow metadata and shop data.
+  # For a portfolio this is fine; production would separate them.
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: shop_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-analytics}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-analytics}
+      POSTGRES_DB: ${POSTGRES_DB:-shop}
+    ports:
+      - "5432:5432"          # exposed so Power BI / DBeaver can reach marts
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:             # airflow waits for this before starting
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - pipeline
+
+  # --------------------------------------------------------------------------
+  # Airflow (single container running webserver + scheduler + one-time init).
+  # LocalExecutor keeps the architecture honest but simple enough to defend:
+  # "LocalExecutor runs tasks as subprocesses on one node — fine until you
+  #  outgrow it, then Celery/Kubernetes executors distribute the workers."
+  # --------------------------------------------------------------------------
+  airflow:
+    <<: *airflow-common
+    container_name: shop_airflow
+    command: >
+      bash -c "
+        airflow db migrate &&
+        (airflow users create
+          --username $${AIRFLOW_ADMIN_USER:-admin}
+          --password $${AIRFLOW_ADMIN_PASSWORD:-admin}
+          --firstname $${AIRFLOW_ADMIN_FIRSTNAME:-Admin}
+          --lastname $${AIRFLOW_ADMIN_LASTNAME:-User}
+          --role Admin
+          --email $${AIRFLOW_ADMIN_EMAIL:-admin@example.com}
+          || true) &&
+        airflow webserver &
+        airflow scheduler
+      "
+    ports:
+      - "8080:8080"          # Airflow UI -> http://localhost:8080
+    networks:
+      - pipeline
+
+volumes:
+  pgdata:
+
+networks:
+  pipeline:
+    driver: bridge

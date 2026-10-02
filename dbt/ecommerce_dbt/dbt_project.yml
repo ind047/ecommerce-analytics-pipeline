@@ -1,0 +1,32 @@
+# ============================================================================
+# dbt project configuration
+# Interview answer: "dbt_project.yml declares project name, where models live,
+# default materializations, and how tests run — the project's front door."
+# ============================================================================
+name: 'ecommerce_dbt'
+version: '1.0.0'
+config-version: 2
+
+# This tells dbt where to find models/, tests/, macros/, etc.
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]   # contains generate_schema_name (see macros/)
+
+# Target schema for this project's objects. We use two schemas via
+# custom materializations in the staging/marts folder configs below:
+#   raw.*      <- landing zone (created by load_raw.py, declared as sources)
+#   staging.*  <- cleaned 1:1 models
+#   marts.*    <- dims, facts, business marts
+models:
+  ecommerce_dbt:
+    +materialized: view            # safe default; folders override below
+    staging:
+      +materialized: view          # staging = lightweight cleaned views
+      +schema: staging             # -> staging.* in the warehouse
+    marts:
+      +materialized: table         # marts = physical tables (BI reads them)
+      +schema: marts               # -> marts.*
+
+tests:
+  +store_failures: true            # failed test rows land in a table so you
+                                   # can INSPECT the violations, not just fail

@@ -63,12 +63,12 @@ CONNINFO = (
 # (the parse mode documents which loader concern each file triggers)
 SOURCES = {
     "customers": ("customers.csv", "csv"),
-    "products":  ("products.csv", "csv"),
-    "orders":    ("orders.csv", "csv"),
-    "events":    ("events.jsonl", "jsonl"),
+    "products": ("products.csv", "csv"),
+    "orders": ("orders.csv", "csv"),
+    "events": ("events.jsonl", "jsonl"),
 }
 
-BATCH_SIZE = 5_000   # executemany batch size; keeps memory flat at 80k+ rows
+BATCH_SIZE = 5_000  # executemany batch size; keeps memory flat at 80k+ rows
 
 # SQL used for every table: payload + audit column, nothing else.
 CREATE_TABLE_SQL = """
@@ -113,12 +113,12 @@ def parse_jsonl_file(path: Path):
         for line in f:
             line = line.strip()
             if not line:
-                yield None, "<empty line>"      # blank lines are defects too
+                yield None, "<empty line>"  # blank lines are defects too
                 continue
             try:
                 yield json.loads(line), None
             except json.JSONDecodeError:
-                yield None, line                # dead-letter candidate
+                yield None, line  # dead-letter candidate
 
 
 PARSERS = {"csv": parse_csv_file, "jsonl": parse_jsonl_file}
@@ -175,9 +175,11 @@ def main() -> None:
                 continue
             stats = load_table(conn, table, path, mode)
             conn.commit()
-            print(f"  [OK ] raw.{table:<10} <- {filename:<15} "
-                  f"loaded={stats['loaded']:>7,} "
-                  f"dead_lettered={stats['dead_lettered']}")
+            print(
+                f"  [OK ] raw.{table:<10} <- {filename:<15} "
+                f"loaded={stats['loaded']:>7,} "
+                f"dead_lettered={stats['dead_lettered']}"
+            )
     print("Raw load complete.")
 
 

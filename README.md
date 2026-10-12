@@ -91,7 +91,7 @@ dbt deps
 dbt build
 ```
 
-## Key design decisions (interview defense)
+## Key design decisions
 
 | Decision | Why |
 |---|---|

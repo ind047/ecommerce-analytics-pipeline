@@ -5,8 +5,8 @@
  Key cleaning rules:
    1. Inconsistent event types ("pageview", "Page_View", "  ADD_TO_CART ")
       -> lower(trim(...)) then map known synonyms back to the canonical 4.
-   2. Unknown types are KEPT with a flag rather than dropped — in the
-      interview: "we don't silently throw away unknown values; we isolate
+   2. Unknown types are KEPT with a flag rather than dropped:
+      "we don't silently throw away unknown values; we isolate
       them so a data bug becomes visible as a flag column spike."
    3. Mixed date formats -> same detect-and-parse strategy as orders.
    4. Malformed lines never reach raw (loader dead-letters them), so the

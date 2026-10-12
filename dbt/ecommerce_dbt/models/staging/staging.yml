@@ -1,7 +1,7 @@
 # ============================================================================
 # staging.yml — tests on the staging layer
 #
-# INTERVIEW NARRATIVE: "Generic tests (unique / not_null / relationships /
+# "Generic tests (unique / not_null / relationships /
 # accepted_values) come free with dbt; I treat them as the CONTRACT each
 # model makes with its consumers. `dbt build` runs models AND tests, so a
 # contract violation fails the pipeline loudly instead of corrupting a

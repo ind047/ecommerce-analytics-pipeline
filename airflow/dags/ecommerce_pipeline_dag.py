@@ -3,12 +3,12 @@
 =============================================================================
  ecommerce_pipeline_dag.py — orchestrate generate -> load -> dbt build
 =============================================================================
- THE ORCHESTRATION STORY (interview answer):
+ THE ORCHESTRATION STORY:
    "Airflow schedules and monitors the pipeline as a DAG — a directed
     acyclic graph of tasks with explicit dependencies. Each run follows
     four steps: generate fresh raw data, load it into the raw schema,
     run dbt build (models + tests), and a final health check. Tasks have
-    retries with exponential backoff, and if dbt tests fail the DAG run
+    retries with exponential backoff, and if dbt tests fail, the DAG run
     fails visibly — tests are part of the pipeline, not an afterthought."
 
  DESIGN CHOICES, EXPLAINED:

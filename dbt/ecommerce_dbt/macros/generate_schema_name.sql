@@ -1,7 +1,7 @@
 {# ============================================================================
  generate_schema_name.sql — CUSTOM schema naming logic
 ============================================================================
- THE GOTCHA THIS FIXES (a favorite interview question):
+ THE GOTCHA THIS FIXES:
    By default, dbt builds a model with `+schema: marts` into
    "<target_schema>_<custom_schema>" — i.e. schema `dbt_marts`, not `marts`.
    That default exists so teams can share one database without collisions.
@@ -13,10 +13,7 @@
    or switch behavior per target:
 
        {{ generate_schema_name(custom_schema_name, node) }}
-       -> 'marts' in dev when custom_schema_name is set
-
-   If an interviewer asks "why is your staging schema called staging and
-   not dbt_staging?" — this macro is the answer.
+       -> 'marts' in dev when custom_schema_name is set 
 #}}
 {% macro generate_schema_name(custom_schema_name, node) -%}
     {%- if custom_schema_name is none -%}

@@ -1,7 +1,7 @@
 # ============================================================================
 # sources.yml — declare the raw landing zone as dbt SOURCES.
 #
-# WHY SOURCES MATTER (interview answer):
+# WHY SOURCES MATTER:
 #   "Sources are dbt's contract with the outside world: they name the raw
 #    tables, declare freshness expectations, and let every staging model
 #    reference {{ source('raw', 'orders') }} instead of hard-coding schema

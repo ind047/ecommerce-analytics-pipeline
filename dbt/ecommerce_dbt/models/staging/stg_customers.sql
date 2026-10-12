@@ -2,7 +2,6 @@
 =============================================================================
  stg_customers.sql — staging: cleaned, typed, deduplicated customers
 =============================================================================
- STAGING RULES (say this in the interview):
    1. One staging model per raw source, 1:1 in grain.
    2. Clean and standardize ONLY — no joins, no business logic. Business
       logic belongs in marts. This separation means cleaning rules are
